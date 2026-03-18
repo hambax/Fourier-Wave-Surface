@@ -1,0 +1,554 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Fourier Wave Surface</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --slate-200: #e2e8f0;
+      --slate-300: #cbd5e1;
+      --slate-400: #94a3b8;
+      --slate-500: #64748b;
+      --slate-600: #475569;
+      --slate-700: #334155;
+      --slate-800: #1e293b;
+      --slate-900: #0f172a;
+      --slate-950: #020617;
+      --emerald-500: #10b981;
+      --emerald-600: #059669;
+    }
+
+    body {
+      background: #020617;
+      color: #e2e8f0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      display: flex;
+      justify-content: center;
+      padding: 24px 16px;
+      min-height: 100vh;
+    }
+
+    .card {
+      background: var(--slate-950);
+      border-radius: 16px;
+      overflow: hidden;
+      max-width: 680px;
+      width: 100%;
+    }
+
+    .card-header {
+      padding: 20px 20px 12px;
+    }
+    .card-header h2 {
+      font-size: 20px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+    }
+    .card-header p {
+      font-size: 13px;
+      color: var(--slate-500);
+      margin-top: 4px;
+    }
+
+    .viewport-wrap {
+      padding: 0 16px 16px;
+    }
+    .viewport {
+      width: 100%;
+      border-radius: 12px;
+      overflow: hidden;
+      border: 1px solid var(--slate-800);
+      cursor: grab;
+      min-height: 240px;
+    }
+    .viewport:active { cursor: grabbing; }
+    .viewport canvas { display: block; width: 100%; height: 100%; }
+
+    .section { padding: 0 20px 16px; }
+
+    .panel {
+      background: var(--slate-900);
+      border-radius: 12px;
+      padding: 16px;
+    }
+
+    .transport-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+    .transport-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 40px;
+      height: 40px;
+      border-radius: 8px;
+      border: none;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .transport-btn.primary {
+      background: var(--emerald-600);
+      color: white;
+    }
+    .transport-btn.primary:hover { background: var(--emerald-500); }
+    .transport-btn.secondary {
+      background: var(--slate-800);
+      color: var(--slate-300);
+    }
+    .transport-btn.secondary:hover { background: var(--slate-700); }
+
+    .transport-status {
+      flex: 1;
+      text-align: right;
+      font-size: 12px;
+      color: var(--slate-600);
+      user-select: none;
+    }
+
+    .global-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 16px;
+    }
+    @media (min-width: 480px) {
+      .global-grid { grid-template-columns: 1fr 1fr 1fr; }
+    }
+
+    .section-title {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--slate-500);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 12px;
+    }
+
+    .harmonics-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 12px;
+    }
+    @media (min-width: 480px) {
+      .harmonics-grid { grid-template-columns: 1fr 1fr; }
+    }
+
+    .harmonic-card {
+      background: var(--slate-900);
+      border-radius: 12px;
+      padding: 12px;
+    }
+    .harmonic-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+    .harmonic-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .harmonic-label {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--slate-300);
+      user-select: none;
+    }
+
+    .slider-group { margin-bottom: 12px; }
+    .slider-group:last-child { margin-bottom: 0; }
+    .slider-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 6px;
+    }
+    .slider-label {
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--slate-400);
+      user-select: none;
+    }
+    .slider-value {
+      font-size: 12px;
+      font-family: "SF Mono", "Fira Code", "Consolas", monospace;
+      color: var(--slate-300);
+      background: var(--slate-800);
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-variant-numeric: tabular-nums;
+    }
+    input[type="range"] {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 100%;
+      height: 6px;
+      border-radius: 3px;
+      background: var(--slate-800);
+      outline: none;
+      cursor: pointer;
+    }
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: var(--thumb-color, var(--emerald-500));
+      border: 2px solid var(--slate-950);
+      box-shadow: 0 0 0 1px rgba(255,255,255,0.08);
+      cursor: pointer;
+    }
+    input[type="range"]::-moz-range-thumb {
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: var(--thumb-color, var(--emerald-500));
+      border: 2px solid var(--slate-950);
+      box-shadow: 0 0 0 1px rgba(255,255,255,0.08);
+      cursor: pointer;
+    }
+    input[type="range"]:focus-visible {
+      outline: 2px solid var(--thumb-color, var(--emerald-500));
+      outline-offset: 2px;
+      border-radius: 3px;
+    }
+
+    .waveform-wrap {
+      background: var(--slate-900);
+      border-radius: 12px;
+      border: 1px solid var(--slate-800);
+      padding: 12px;
+    }
+    .waveform-wrap svg { width: 100%; display: block; }
+
+    /* Play and pause icons via CSS since we have no icon library */
+    .icon-play, .icon-pause, .icon-reset { display: block; }
+  </style>
+</head>
+<body>
+
+<div class="card" id="app">
+  <div class="card-header">
+    <h2>Fourier Wave Surface</h2>
+    <p>Drag to orbit, scroll to zoom. Layer harmonics to sculpt wave interference patterns.</p>
+  </div>
+
+  <div class="viewport-wrap">
+    <div class="viewport" id="viewport"></div>
+  </div>
+
+  <div class="section">
+    <div class="panel">
+      <div class="transport-row">
+        <button class="transport-btn primary" id="btn-play" aria-label="Play or pause animation">
+          <svg id="icon-pause" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="6" y1="4" x2="6" y2="20"/><line x1="18" y1="4" x2="18" y2="20"/></svg>
+          <svg id="icon-play" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:none"><polygon points="5,3 19,12 5,21"/></svg>
+        </button>
+        <button class="transport-btn secondary" id="btn-reset" aria-label="Reset animation">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="1,4 1,10 7,10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+        </button>
+        <span class="transport-status" id="status-label">Animating</span>
+      </div>
+
+      <div class="global-grid">
+        <div class="slider-group">
+          <div class="slider-top">
+            <label class="slider-label" for="sl-speed">Speed</label>
+            <span class="slider-value" id="val-speed">1.0x</span>
+          </div>
+          <input type="range" id="sl-speed" min="0.1" max="4" step="0.1" value="1" style="--thumb-color:#34d399" />
+        </div>
+        <div class="slider-group">
+          <div class="slider-top">
+            <label class="slider-label" for="sl-angle">Wave Angle</label>
+            <span class="slider-value" id="val-angle">0deg</span>
+          </div>
+          <input type="range" id="sl-angle" min="0" max="6.2832" step="0.05" value="0" style="--thumb-color:#38bdf8" />
+        </div>
+        <div class="slider-group">
+          <div class="slider-top">
+            <label class="slider-label" for="sl-damping">Damping</label>
+            <span class="slider-value" id="val-damping">0.00</span>
+          </div>
+          <input type="range" id="sl-damping" min="0" max="2" step="0.05" value="0" style="--thumb-color:#f87171" />
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Harmonics</div>
+    <div class="harmonics-grid" id="harmonics-grid"></div>
+  </div>
+
+  <div class="section" style="padding-bottom:20px">
+    <div class="section-title">Cross-Section</div>
+    <div class="waveform-wrap">
+      <svg id="waveform-svg" viewBox="0 0 560 120" role="img" aria-label="Waveform cross-section showing the sum of all harmonics">
+        <defs>
+          <linearGradient id="waveGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#34d399" stop-opacity="0.15" />
+            <stop offset="100%" stop-color="#34d399" stop-opacity="0" />
+          </linearGradient>
+        </defs>
+        <line x1="10" y1="60" x2="550" y2="60" stroke="rgba(255,255,255,0.05)" stroke-width="1" />
+        <line x1="10" y1="30" x2="550" y2="30" stroke="rgba(255,255,255,0.02)" stroke-width="1" stroke-dasharray="4 6" />
+        <line x1="10" y1="90" x2="550" y2="90" stroke="rgba(255,255,255,0.02)" stroke-width="1" stroke-dasharray="4 6" />
+        <path id="wave-fill" fill="url(#waveGrad)" />
+        <path id="wave-line" fill="none" stroke="#34d399" stroke-width="2" stroke-linejoin="round" />
+      </svg>
+    </div>
+  </div>
+</div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.163.0/build/three.module.js"
+  }
+}
+</script>
+
+<script type="module">
+import * as THREE from "three";
+
+const TAU = Math.PI * 2;
+const HARM_COLORS = ["#34d399", "#38bdf8", "#c084fc", "#fb923c"];
+
+// State
+let playing = true;
+let time = 0;
+let speed = 1;
+let waveAngle = 0;
+let damping = 0;
+let amps = [1, 0.33, 0.2, 0.12];
+let freqs = [1, 3, 5, 7];
+
+// DOM references
+const viewport = document.getElementById("viewport");
+const btnPlay = document.getElementById("btn-play");
+const btnReset = document.getElementById("btn-reset");
+const iconPlay = document.getElementById("icon-play");
+const iconPause = document.getElementById("icon-pause");
+const statusLabel = document.getElementById("status-label");
+const slSpeed = document.getElementById("sl-speed");
+const slAngle = document.getElementById("sl-angle");
+const slDamping = document.getElementById("sl-damping");
+const valSpeed = document.getElementById("val-speed");
+const valAngle = document.getElementById("val-angle");
+const valDamping = document.getElementById("val-damping");
+const waveLine = document.getElementById("wave-line");
+const waveFill = document.getElementById("wave-fill");
+const harmonicsGrid = document.getElementById("harmonics-grid");
+
+// Build harmonic cards
+amps.forEach((a, i) => {
+  const card = document.createElement("div");
+  card.className = "harmonic-card";
+  card.innerHTML = `
+    <div class="harmonic-header">
+      <div class="harmonic-dot" style="background:${HARM_COLORS[i]}"></div>
+      <span class="harmonic-label">Harmonic ${i + 1}</span>
+    </div>
+    <div class="slider-group">
+      <div class="slider-top">
+        <label class="slider-label" for="sl-amp-${i}">Amplitude</label>
+        <span class="slider-value" id="val-amp-${i}">${a.toFixed(2)}</span>
+      </div>
+      <input type="range" id="sl-amp-${i}" min="0" max="1.5" step="0.01" value="${a}" style="--thumb-color:${HARM_COLORS[i]}" />
+    </div>
+    <div class="slider-group">
+      <div class="slider-top">
+        <label class="slider-label" for="sl-frq-${i}">Frequency</label>
+        <span class="slider-value" id="val-frq-${i}">${freqs[i].toFixed(1)}x</span>
+      </div>
+      <input type="range" id="sl-frq-${i}" min="0.5" max="12" step="0.5" value="${freqs[i]}" style="--thumb-color:${HARM_COLORS[i]}" />
+    </div>
+  `;
+  harmonicsGrid.appendChild(card);
+
+  card.querySelector(`#sl-amp-${i}`).addEventListener("input", (e) => {
+    amps[i] = parseFloat(e.target.value);
+    document.getElementById(`val-amp-${i}`).textContent = amps[i].toFixed(2);
+    updateWaveform();
+  });
+  card.querySelector(`#sl-frq-${i}`).addEventListener("input", (e) => {
+    freqs[i] = parseFloat(e.target.value);
+    document.getElementById(`val-frq-${i}`).textContent = freqs[i].toFixed(1) + "x";
+    updateWaveform();
+  });
+});
+
+// Transport controls
+btnPlay.addEventListener("click", () => {
+  playing = !playing;
+  iconPlay.style.display = playing ? "none" : "block";
+  iconPause.style.display = playing ? "block" : "none";
+  statusLabel.textContent = playing ? "Animating" : "Paused";
+});
+btnReset.addEventListener("click", () => { time = 0; });
+
+slSpeed.addEventListener("input", (e) => {
+  speed = parseFloat(e.target.value);
+  valSpeed.textContent = speed.toFixed(1) + "x";
+});
+slAngle.addEventListener("input", (e) => {
+  waveAngle = parseFloat(e.target.value);
+  valAngle.textContent = (waveAngle * 180 / Math.PI).toFixed(0) + "deg";
+  updateWaveform();
+});
+slDamping.addEventListener("input", (e) => {
+  damping = parseFloat(e.target.value);
+  valDamping.textContent = damping.toFixed(2);
+});
+
+// Waveform SVG
+function updateWaveform() {
+  const pts = [];
+  for (let i = 0; i <= 200; i++) {
+    const proj = ((i / 200) - 0.5) * 6;
+    let y = 0;
+    for (let k = 0; k < amps.length; k++) {
+      y += amps[k] * Math.sin(freqs[k] * proj);
+    }
+    y *= 0.5;
+    pts.push(`${i === 0 ? "M" : "L"}${10 + (i / 200) * 540},${60 - y * 40}`);
+  }
+  const d = pts.join(" ");
+  waveLine.setAttribute("d", d);
+  waveFill.setAttribute("d", d + " L550,60 L10,60 Z");
+}
+updateWaveform();
+
+// Three.js setup
+function colorFromHeight(h) {
+  const t = h * 0.5 + 0.5;
+  if (t < 0.25) return new THREE.Color(0.08, 0.06, 0.35 + t * 2.2);
+  if (t < 0.5) return new THREE.Color(0.05, (t - 0.25) * 3.6, 0.85);
+  if (t < 0.75) return new THREE.Color((t - 0.5) * 4, 0.88, 1 - (t - 0.5) * 3.2);
+  return new THREE.Color(1, 1 - (t - 0.75) * 2.8, 0.15);
+}
+
+const W = viewport.clientWidth;
+const H = Math.min(400, W * 0.6);
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x08081a);
+scene.fog = new THREE.FogExp2(0x08081a, 0.06);
+
+const camera = new THREE.PerspectiveCamera(50, W / H, 0.1, 100);
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(W, H);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+viewport.appendChild(renderer.domElement);
+
+const segments = 80;
+const geo = new THREE.PlaneGeometry(6, 6, segments, segments);
+geo.rotateX(-Math.PI / 2);
+const colorsArr = new Float32Array(geo.attributes.position.count * 3);
+geo.setAttribute("color", new THREE.BufferAttribute(colorsArr, 3));
+
+const mat = new THREE.MeshStandardMaterial({
+  vertexColors: true,
+  side: THREE.DoubleSide,
+  metalness: 0.15,
+  roughness: 0.55,
+});
+scene.add(new THREE.Mesh(geo, mat));
+
+const grid = new THREE.GridHelper(6, 20, 0x1a1a3a, 0x0f0f28);
+grid.position.y = -1.5;
+scene.add(grid);
+
+scene.add(new THREE.AmbientLight(0x334466, 0.7));
+const dirLight = new THREE.DirectionalLight(0xffffff, 1.1);
+dirLight.position.set(3, 5, 4);
+scene.add(dirLight);
+const fillLight = new THREE.DirectionalLight(0x6688cc, 0.4);
+fillLight.position.set(-4, 2, -3);
+scene.add(fillLight);
+
+const spherical = { theta: Math.PI / 4, phi: Math.PI / 5, radius: 8 };
+
+function updateCamera() {
+  camera.position.x = spherical.radius * Math.sin(spherical.phi) * Math.sin(spherical.theta);
+  camera.position.y = spherical.radius * Math.cos(spherical.phi);
+  camera.position.z = spherical.radius * Math.sin(spherical.phi) * Math.cos(spherical.theta);
+  camera.lookAt(0, 0, 0);
+}
+updateCamera();
+
+// Orbit drag
+let dragActive = false, dragLastX = 0, dragLastY = 0;
+renderer.domElement.addEventListener("pointerdown", (e) => {
+  dragActive = true; dragLastX = e.clientX; dragLastY = e.clientY;
+});
+window.addEventListener("pointermove", (e) => {
+  if (!dragActive) return;
+  spherical.theta -= (e.clientX - dragLastX) * 0.008;
+  spherical.phi = Math.max(0.15, Math.min(Math.PI / 2 - 0.05, spherical.phi + (e.clientY - dragLastY) * 0.008));
+  dragLastX = e.clientX; dragLastY = e.clientY;
+  updateCamera();
+});
+window.addEventListener("pointerup", () => { dragActive = false; });
+renderer.domElement.addEventListener("wheel", (e) => {
+  spherical.radius = Math.max(3, Math.min(15, spherical.radius + e.deltaY * 0.01));
+  updateCamera();
+}, { passive: true });
+
+// Resize
+window.addEventListener("resize", () => {
+  const nw = viewport.clientWidth;
+  const nh = Math.min(400, nw * 0.6);
+  camera.aspect = nw / nh;
+  camera.updateProjectionMatrix();
+  renderer.setSize(nw, nh);
+});
+
+// Animation loop
+let lastFrameTime = performance.now();
+
+function animate(now) {
+  requestAnimationFrame(animate);
+  const dt = (now - lastFrameTime) / 1000;
+  lastFrameTime = now;
+  if (playing) time += dt * speed;
+
+  const pos = geo.attributes.position;
+  const col = geo.attributes.color;
+  const cAng = Math.cos(waveAngle);
+  const sAng = Math.sin(waveAngle);
+
+  for (let i = 0; i < pos.count; i++) {
+    const x = pos.getX(i);
+    const z = pos.getZ(i);
+    const proj = x * cAng + z * sAng;
+    const dist = Math.sqrt(x * x + z * z);
+    const dampFactor = damping > 0 ? Math.exp(-damping * dist * 0.3) : 1;
+    let y = 0;
+    for (let k = 0; k < amps.length; k++) {
+      y += amps[k] * Math.sin(freqs[k] * proj - time * freqs[k] * 0.5);
+    }
+    y *= 0.5 * dampFactor;
+    pos.setY(i, y);
+    const c = colorFromHeight(y);
+    col.setXYZ(i, c.r, c.g, c.b);
+  }
+  pos.needsUpdate = true;
+  col.needsUpdate = true;
+  geo.computeVertexNormals();
+  renderer.render(scene, camera);
+}
+requestAnimationFrame(animate);
+</script>
+
+</body>
+</html>
